@@ -33,12 +33,41 @@ npm start
 (`Number(process.env.PORT || 3000)`), so leaving `PORT` unset or empty falls back to
 `3000`, `PORT=0` asks the operating system for a free port, and a value that is not a
 usable port number (for example `abc` or `-1`) makes startup fail immediately with Node's
-`ERR_SOCKET_BAD_PORT` instead of starting a server. The startup line prints the address
-actually bound, so the URL it reports always works:
+`ERR_SOCKET_BAD_PORT` instead of starting a server. The startup line prints the host and
+port actually bound, so the URL it reports always works:
 
 ```bash
 PORT=8080 npm start
 ```
+
+### Network exposure
+
+The server binds the loopback interface `127.0.0.1` by default, so it answers only
+requests made from the machine it is running on. Set `HOST` to widen that deliberately —
+for example to reach the server from outside the container or virtual machine it runs in:
+
+```bash
+HOST=0.0.0.0 npm start
+```
+
+`HOST=0.0.0.0` publishes both endpoints on every network the machine is attached to.
+They serve two constant strings and hold no data, but nothing authenticates the caller,
+so widen the bind only onto a network you trust.
+
+### Production runs
+
+Run the server with `NODE_ENV=production` anywhere that is not a development machine:
+
+```bash
+NODE_ENV=production npm start
+```
+
+Express reads `NODE_ENV` to decide its own `env` setting, and `development` — the setting
+it assumes whenever `NODE_ENV` is unset — is the one under which the framework's built-in
+final handler writes an error's stack trace into the response body. `index.js` registers
+an error handler of its own, so a failed request is answered with `500 Internal Server
+Error` and no stack in any environment; setting `NODE_ENV=production` closes the same
+exposure at the framework level and enables Express's production defaults.
 
 ### Stopping and restarting
 
@@ -72,17 +101,30 @@ the listener itself.
 Both endpoints respond with HTTP `200 OK` and the exact string body shown in the table below.
 The handlers pass those strings to Express's `res.send()`, which applies Express's default
 content type for string bodies, so each response carries the header
-`Content-Type: text/html; charset=utf-8`. `GET /` is the original tutorial endpoint, retained
-unchanged; `GET /good-evening` is the endpoint added alongside it.
+`Content-Type: text/html; charset=utf-8`. Each response also carries
+`X-Content-Type-Options: nosniff`, so a client acts on that declared type instead of guessing
+another one from the plain-text body — the same protection Express already applies to its own
+`404` responses, now applied to the successful ones too. `GET /` is the original tutorial
+endpoint, retained unchanged; `GET /good-evening` is the endpoint added alongside it.
 
 | Method | Path | Response |
 | --- | --- | --- |
 | `GET` | `/` | `Hello world` |
 | `GET` | `/good-evening` | `Good evening` |
 
+Those two paths are the canonical ones, but they are not the only spellings that reach the
+handlers. Express matches routes case-insensitively and tolerates a single trailing slash
+unless its `case sensitive routing` and `strict routing` settings are enabled, and this server
+leaves both at their defaults: `/Good-Evening`, `/GOOD-EVENING` and `/good-evening/` all return
+`Good evening`, and `//` returns `Hello world`. The tolerance stops there — a second slash
+(`/good-evening//`, `///`) and a percent-encoded path (`/%67ood-evening`, which is not decoded
+before matching) both return Express's default `404`. Every spelling that matches returns the
+same constant as the canonical path, so the wider surface adds no behaviour beyond the table.
+
 ## Verify
 
-With the server running:
+With the server running, from the machine it is running on — which is the only place the
+default loopback bind answers:
 
 ```bash
 curl -s http://localhost:3000/
