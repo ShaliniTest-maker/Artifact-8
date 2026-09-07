@@ -37,8 +37,11 @@ PORT=8080 npm start
 
 ## Endpoints
 
-Both endpoints respond with HTTP `200 OK` and a plain-text body. `GET /` is the original
-tutorial endpoint, retained unchanged; `GET /good-evening` is the endpoint added alongside it.
+Both endpoints respond with HTTP `200 OK` and the exact string body shown in the table below.
+The handlers pass those strings to Express's `res.send()`, which applies Express's default
+content type for string bodies, so each response carries the header
+`Content-Type: text/html; charset=utf-8`. `GET /` is the original tutorial endpoint, retained
+unchanged; `GET /good-evening` is the endpoint added alongside it.
 
 | Method | Path | Response |
 | --- | --- | --- |

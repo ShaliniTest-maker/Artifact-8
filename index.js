@@ -20,6 +20,16 @@ app.get('/', (req, res) => res.send('Hello world'));
 // Second endpoint added by this feature.
 app.get('/good-evening', (req, res) => res.send('Good evening'));
 
-app.listen(PORT, () => {
+// Express forwards an asynchronous bind failure (for example EADDRINUSE when the
+// port is already taken) to this same callback as its first argument, so the error
+// has to be checked before anything is reported as started: without the check a
+// failed bind would still print the listening message and exit successfully.
+app.listen(PORT, (error) => {
+  if (error) {
+    console.error(`Failed to start server on port ${PORT}:`, error);
+    process.exitCode = 1;
+    return;
+  }
+
   console.log(`Server listening on http://localhost:${PORT}`);
 });
